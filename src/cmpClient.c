@@ -677,26 +677,22 @@ void cmp_kur(OSSL_CMP_CTX *ctx, CREDENTIALS *new_creds, const EVP_PKEY *new_key)
 
 int main(int argc, char *argv[])
 {
-  
-    char *command = NULL;
-    char *mac = "00:08:DC:74:43:DA"; // Default
-    char *serial_number = "IPS-601-25GW-07196"; // Default
-    CMP_CTX *ctx = NULL;
-    int err = 0;
+    char *command = NULL; // Argument for command, supported only ir and kur.
+    char *mac = "00:08:DC:74:43:DA"; // MAC Address to be used with the subject, this is the default value.
+    char *serial_number = "IPS-601-25GW-07196"; // Serial number to be used with the subject, this is the default value.
+    CMP_CTX *ctx = NULL; // Pointer to a context structure, used by all CMP calls (libgencmp, libsecutils)
+    int err = 0; // Error code
 
-    X509_STORE *own_truststore = NULL;
-    X509_STORE *cmp_truststore = NULL;
-    CREDENTIALS *cmp_creds = NULL;
-    EVP_PKEY *new_pkey = NULL;
-    X509_EXTENSIONS *exts = NULL;
-    SSL_CTX *tls = NULL;
-    X509 *oldcert = NULL;
-    CREDENTIALS *new_creds = NULL;
-    X509_REQ *csr = NULL;
-    CREDENTIALS *tls_creds = NULL;
-    X509_STORE *tls_trust = NULL;
-    char *cert = NULL;
-    char *key = NULL;
+    X509_STORE *own_truststore = NULL; // Trust store used for verification
+    X509_STORE *cmp_truststore = NULL; // Trust store used for authenticating the server
+    CREDENTIALS *cmp_creds = NULL; // Credentials used for the CMP messages exchange
+    EVP_PKEY *new_pkey = NULL;  // Key used to protect the exchange
+    X509_EXTENSIONS *exts = NULL; // X509 extensions, however in these workflows not used
+    SSL_CTX *tls = NULL;  // TLS context used to protect HTTPS requests
+    X509 *oldcert = NULL; // "old certificate" used for the KUR message, this is the certificate that gets renewed
+    CREDENTIALS *new_creds = NULL; // credentials enrolled, got by either IR or KUR
+    CREDENTIALS *tls_creds = NULL; // credentials used for the HTTP
+    X509_STORE *tls_trust = NULL; // trust store used for authenticating the HTTP server
 
     enum cmd {
       ir,
@@ -705,7 +701,6 @@ int main(int argc, char *argv[])
     };
 
     enum cmd current_cmd = unknown;
-    enum use_case usecase = unknown;
 
     OPT_init(cmp_opts);
 
@@ -720,11 +715,9 @@ int main(int argc, char *argv[])
           if (strcmp(command, "ir") == 0) {
             current_cmd = ir;
             opt_section = "CloudCA,imprint";
-            usecase = imprint;
           } else if (strcmp(command, "kur") == 0) {
             current_cmd = kur;
             opt_section = "CloudCA,update";
-            usecase = update;
           }
           break;
         case 'm':
@@ -798,7 +791,7 @@ int main(int argc, char *argv[])
                             untrusted_certs,
                             cmp_creds, own_truststore,
                             opt_digest, opt_mac,
-                            NULL, (int)opt_total_timeout,
+                            NULL, 60 /*timeout*/,
                             NULL, opt_implicit_confirm);
 
     OSSL_CMP_CTX_set_log_verbosity(ctx, (int)opt_verbosity);
@@ -845,6 +838,5 @@ int main(int argc, char *argv[])
     X509_VERIFY_PARAM_free(vpm);
     NCONF_free(config);
     X509_free(oldcert);
-    X509_REQ_free(csr);
     CMPclient_finish(ctx);
 }
