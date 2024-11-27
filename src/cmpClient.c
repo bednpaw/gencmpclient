@@ -763,17 +763,8 @@ int main(int argc, char *argv[])
     // Initialize X509 VERIFY PARAM - to be investigated
     vpm = X509_VERIFY_PARAM_new();
 
-    // Initialize CRL Management structure
-    cmdata = CRLMGMT_DATA_new();
-
     // Update the VPM (X509 VERIFY PARAM) according to the config
     CONF_update_vpm(config, opt_section, vpm);
-
-    // Set up some settings for CRL Management
-    CRLMGMT_DATA_set_proxy_url(cmdata, opt_cdp_proxy);
-    CRLMGMT_DATA_set_crl_max_download_size(cmdata, opt_crl_maxdownload_size);
-    CRLMGMT_DATA_set_crl_cache_dir(cmdata, opt_crl_cache_dir);
-    CRLMGMT_DATA_set_note(cmdata, "tls or cmp connection or new certificate");
 
     // Load credentials "for CMP level"
     if ((cmp_creds = CREDENTIALS_load(opt_cert, opt_key, opt_keypass, "credentials for CMP level")) == NULL) {
@@ -822,7 +813,6 @@ int main(int argc, char *argv[])
     // Setup TLS trust store
     tls_trust = STORE_load(opt_tls_trusted, "trusted certs for TLS level", NULL);
     STORE_set_parameters(tls_trust, vpm, opt_check_all, opt_stapling, crls, opt_use_cdp, opt_cdps, (int)opt_crls_timeout, opt_use_aia, opt_ocsp, (int)opt_ocsp_timeout);
-    STORE_set_crl_callback(tls_trust, CRLMGMT_load_crl_cb, cmdata);
 
     // Setup TLS context
     tls = TLS_new(tls_trust, OSSL_CMP_CTX_get0_untrusted(ctx), tls_creds, NULL, -1);
@@ -848,7 +838,6 @@ int main(int argc, char *argv[])
     STORE_free(own_truststore);
     TLS_free(tls);
     STORE_free(tls_trust);
-    CRLMGMT_DATA_free(cmdata);
     X509_VERIFY_PARAM_free(vpm);
     NCONF_free(config);
     CMPclient_finish(ctx);
