@@ -152,16 +152,18 @@ tls_used = 1
 tls_trusted = creds/trusted/DigicertGlobalRootG2.crt
 
 # Tenant on server
-recipient = /CN=CloudPKI-Integration-Test
-cacert = creds/trusted/CloudCA_Root_v2.crt
+recipient = /CN=SE-CloudPKI-Integration-Test
+cacert = creds/test/GasandPowerIoTRoot.crt
 trusted = $cacert
-out_trusted = $cacert
+out_trusted =
 own_trusted = $cacert
 
 # User in tenant
-ref = /CN=CloudCA-Integration-Test-User
-secret = pass:SiemensIT
-subject = $ref
+ref = "/CN=Sensproducts DevLab LRA"
+secret = pass:Random1234
+#subject = "/CN=CloudCA-Integration-Test-User,serialNumber=SENS-PORT,O=Siemens,C=DE"
+#subject = "/unstructuredAddress=000040000001000/CN=Sensformer/serialNumber=SENS-PROD-PASSWORD-RESET-TOKEN-SIGNING/OU=Quality System - For Test purpose only/O=Siemens/C=DE"
+subject = "/unstructuredAddress=00:08:DC:74:43:DA/CN=Sensformer V1/serialNumber=IPS-601-25GW-07196/OU=Quality System - For Test purpose only/O=Siemens/C=DE"
 
 # Local store for imprinting results
 cert = creds/manufacturer.crt
@@ -174,7 +176,7 @@ keypass = pass:12345
 cmd = ir
 cert =
 key =
-newkeytype = EC:secp521r1
+newkeytype = rsa:4096
 newkey = creds/manufacturer.pem # fallback for cmpossl
 newkeypass = pass:12345
 reqexts = empty # is ignored by EJBCA
@@ -188,7 +190,7 @@ cmd = cr
 # cert = $imprint::certout
 # key = $imprint::newkey
 secret =
-newkeytype = EC:prime256v1 # an alias of EC:secp256r1
+newkeytype = rsa:4096
 newkey = creds/operational.pem # fallback for cmpossl
 newkeypass = pass:12345
 reqexts = reqexts
@@ -197,6 +199,23 @@ san_nodefault = 1
 certout = creds/operational.crt
 
 [update]
+path = ${ENV::EJBCA_PATH}/${ENV::EJBCA_PATH_UPDATE}
+cmd = kur
+secret =
+cert = $imprint::certout
+key = $imprint::newkey
+keypass = $imprint::newkeypass
+newkeytype = $imprint::newkeytype
+newkey = $imprint::newkey # fallback for cmpossl
+newkeypass = $imprint::newkeypass
+reqexts = ""
+policies = ""
+oldcert = $imprint::certout # == cert
+subject = ""
+implicit_confirm = 1
+certout = $imprint::certout
+
+[update_bak]
 path = ${ENV::EJBCA_PATH}/${ENV::EJBCA_PATH_UPDATE}
 cmd = kur
 secret =
@@ -212,6 +231,7 @@ oldcert = $bootstrap::certout # == cert
 subject = ""
 implicit_confirm = 1
 certout = $bootstrap::certout
+
 
 [revoke]
 path = ${ENV::EJBCA_PATH}/${ENV::EJBCA_PATH_REVOKE}

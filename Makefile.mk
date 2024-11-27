@@ -7,7 +7,7 @@ BIN_DIR ?= $(abspath .)
 # mode ?= release
 USE_LIBCMP ?= 1
 
-override CFLAGS += -Wall -std=gnu99 -fPIC -D__linux__
+override CFLAGS += -std=gnu99 -fPIC -D__linux__
 
 ifeq ($(mode),release)
     DEBUG_FLAGS ?= -O2

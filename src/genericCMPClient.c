@@ -813,6 +813,12 @@ CMP_err CMPclient_enroll(OSSL_CMP_CTX *ctx, CREDENTIALS **new_creds, int cmd)
     return CMP_OK;
 
  err:
+    unsigned long error_code = ERR_get_error();
+    if (error_code) {
+            char error_string[256];
+            ERR_error_string_n(error_code, error_string, sizeof(error_string));
+            LOG(FL_ERR, "OpenSSL error: %s", error_string);
+    }
     return CMPOSSL_error();
 }
 
@@ -833,8 +839,9 @@ CMP_err CMPclient_imprint(OSSL_CMP_CTX *ctx, CREDENTIALS **new_creds,
         return CMP_R_NULL_ARGUMENT;
     }
 #endif
-    if (subject != NULL && (subj = parse_DN(subject, "subject")) == NULL)
+    if (subject != NULL && (subj = parse_DN(subject, "subject")) == NULL) {
         return CMP_R_INVALID_PARAMETERS;
+    }
     CMP_err err = CMPclient_setup_certreq(ctx, new_key, NULL /* old_cert */,
                                           subj, exts, NULL /* csr */);
     if (err == CMP_OK) {
