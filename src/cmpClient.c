@@ -634,10 +634,7 @@ void print_usage(const char * prog) {
     printf("  -s serial_number_string     Serial number string     (Optional, default: IPS-601-25GW-07196)\n");
 }
 
-void cmp_ir(OSSL_CMP_CTX *ctx, CREDENTIALS *new_creds,
-                          const EVP_PKEY *new_key,
-                          const char *subject,
-                          OPTIONAL const X509_EXTENSIONS *exts) {
+void cmp_ir(OSSL_CMP_CTX *ctx, CREDENTIALS *new_creds, const EVP_PKEY *new_key, const char *subject, OPTIONAL const X509_EXTENSIONS *exts) {
     int err = CMPclient_imprint(ctx, &new_creds, new_key, subject, exts);
     if (err != CMP_OK) {
         LOG(FL_ERR, "Cannot send imprint");
@@ -654,8 +651,7 @@ void cmp_ir(OSSL_CMP_CTX *ctx, CREDENTIALS *new_creds,
     KEY_free(new_key);
 }
 
-void cmp_kur(OSSL_CMP_CTX *ctx, CREDENTIALS *new_creds,
-                                 const EVP_PKEY *new_key) {
+void cmp_kur(OSSL_CMP_CTX *ctx, CREDENTIALS *new_creds, const EVP_PKEY *new_key) {
     X509 *oldcert = CERT_load("creds/manufacturer.crt", "pass:12345", "cert to be updated", -1 /* no type check */, vpm);
 
     if (oldcert == NULL || !OSSL_CMP_CTX_set1_oldCert(ctx, oldcert)) {
