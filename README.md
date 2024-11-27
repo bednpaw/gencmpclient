@@ -109,6 +109,8 @@ However, the libgencmp API is not standalone and relies heavily on `libsecutils`
 
 The most interesting part is in the `src/cmpClient.c`: `main` function, and wrappers `cmp_ir`, and `cmp_kur` functions.
 
+NOTE: The client is not fully disconnected from gencmpclient, saving certificates is still used using the "full" client methods.
+
 ## Disclaimer
 
 This software including associated documentation is provided ‘as is’.
