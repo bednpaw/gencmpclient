@@ -635,6 +635,7 @@ void print_usage(const char * prog) {
 }
 
 void cmp_ir(OSSL_CMP_CTX *ctx, CREDENTIALS *new_creds, const EVP_PKEY *new_key, const char *subject, OPTIONAL const X509_EXTENSIONS *exts) {
+    // The IR call
     int err = CMPclient_imprint(ctx, &new_creds, new_key, subject, exts);
     if (err != CMP_OK) {
         LOG(FL_ERR, "Cannot send imprint");
@@ -643,6 +644,7 @@ void cmp_ir(OSSL_CMP_CTX *ctx, CREDENTIALS *new_creds, const EVP_PKEY *new_key, 
         ERR_error_string_n(err, error_string, sizeof(error_string));
         LOG(FL_ERR, "OpenSSL error: %s", error_string);
     } else {
+        // This still uses gencmpclient code, for saving the credentials received
         save_credentials(ctx, new_creds, imprint);
     }
 
@@ -652,13 +654,14 @@ void cmp_ir(OSSL_CMP_CTX *ctx, CREDENTIALS *new_creds, const EVP_PKEY *new_key, 
 }
 
 void cmp_kur(OSSL_CMP_CTX *ctx, CREDENTIALS *new_creds, const EVP_PKEY *new_key) {
+    // "old certificate" used for the KUR message, this is the certificate that gets renewed
     X509 *oldcert = CERT_load("creds/manufacturer.crt", "pass:12345", "cert to be updated", -1 /* no type check */, vpm);
 
     if (oldcert == NULL || !OSSL_CMP_CTX_set1_oldCert(ctx, oldcert)) {
       LOG(FL_ERR, "Couldn't load oldcert");
-      exit(-1);
     }
 
+    // The KUR call
     int err = CMPclient_update_anycert(ctx, &new_creds, oldcert, new_key);
     if (err != CMP_OK) {
         LOG(FL_ERR, "Cannot send update");
@@ -667,6 +670,7 @@ void cmp_kur(OSSL_CMP_CTX *ctx, CREDENTIALS *new_creds, const EVP_PKEY *new_key)
         ERR_error_string_n(err, error_string, sizeof(error_string));
         LOG(FL_ERR, "OpenSSL error: %s", error_string);
     } else {
+        // This still uses gencmpclient code, for saving the credentials received
         save_credentials(ctx, new_creds, update);
     }
 
@@ -689,7 +693,6 @@ int main(int argc, char *argv[])
     EVP_PKEY *new_pkey = NULL;  // Key used to protect the exchange
     X509_EXTENSIONS *exts = NULL; // X509 extensions, however in these workflows not used
     SSL_CTX *tls = NULL;  // TLS context used to protect HTTPS requests
-    X509 *oldcert = NULL; // "old certificate" used for the KUR message, this is the certificate that gets renewed
     CREDENTIALS *new_creds = NULL; // credentials enrolled, got by either IR or KUR
     CREDENTIALS *tls_creds = NULL; // credentials used for the HTTP
     X509_STORE *tls_trust = NULL; // trust store used for authenticating the HTTP server
@@ -698,12 +701,13 @@ int main(int argc, char *argv[])
       ir,
       kur,
       unknown
-    };
+    }; // enum defining the possible commands for the simple_client
 
-    enum cmd current_cmd = unknown;
+    enum cmd current_cmd = unknown; // current_cmd holds the current command
 
-    OPT_init(cmp_opts);
+    OPT_init(cmp_opts); // call used to initialize config variables (the ones starting with opt_) to the default values
 
+    // C boilerplate code to get command line arguments into the app
     int opt;
     while ((opt = getopt(argc, argv, "hc:m:s:")) != -1) {
       switch (opt) {
@@ -714,10 +718,10 @@ int main(int argc, char *argv[])
           command = optarg;
           if (strcmp(command, "ir") == 0) {
             current_cmd = ir;
-            opt_section = "CloudCA,imprint";
+            opt_section = "CloudCA,imprint"; // set section of the config
           } else if (strcmp(command, "kur") == 0) {
             current_cmd = kur;
-            opt_section = "CloudCA,update";
+            opt_section = "CloudCA,update"; // set section of the config
           }
           break;
         case 'm':
@@ -729,12 +733,13 @@ int main(int argc, char *argv[])
       }
     }
 
-    config = CONF_load_options(NULL, "config/demo.cnf", opt_section, cmp_opts);
+    config = CONF_load_options(NULL, "config/demo.cnf", opt_section, cmp_opts); // Load the config, for the particular section and store it in config
 
-    opt_path = "/.well-known/cmp/p/PPKI%20QA";
+    opt_path = "/.well-known/cmp/p/PPKI%20QA"; // set path on server
 
-    LOG_set_verbosity((severity)LOG_INFO);
+    LOG_set_verbosity((severity)LOG_INFO); // self-explanatory
 
+    // C boilerplate code
     if (current_cmd == unknown) {
       LOG(FL_ERR, "Unknown command");
       print_usage(argv[0]);
@@ -743,6 +748,7 @@ int main(int argc, char *argv[])
 
     char subject[256]; // Only for PoC purposes, otherwise it shall be calculated
 
+    // Only for IR set the subject to the opt_subject(the one used)
     if (current_cmd == ir) { 
         LOG(FL_INFO, "Using MAC: %s, Serial Number: %s", mac, serial_number);
         snprintf(subject, sizeof(subject), "/unstructuredAddress=%s/CN=Sensformer V1/serialNumber=%s/OU=Quality System - For Test purpose only/O=Siemens/C=DE", mac, serial_number);
@@ -751,44 +757,51 @@ int main(int argc, char *argv[])
         LOG(FL_INFO, "Using subject: %s", subject);
     }
 
-    // Setup client
+    // Setup client, OpenSSL, logging, basic stuff
     CMPclient_init("simpleCMP_PoC", NULL);
 
+    // Initialize X509 VERIFY PARAM - to be investigated
     vpm = X509_VERIFY_PARAM_new();
+
+    // Initialize CRL Management structure
     cmdata = CRLMGMT_DATA_new();
 
+    // Update the VPM (X509 VERIFY PARAM) according to the config
     CONF_update_vpm(config, opt_section, vpm);
 
+    // Set up some settings for CRL Management
     CRLMGMT_DATA_set_proxy_url(cmdata, opt_cdp_proxy);
     CRLMGMT_DATA_set_crl_max_download_size(cmdata, opt_crl_maxdownload_size);
     CRLMGMT_DATA_set_crl_cache_dir(cmdata, opt_crl_cache_dir);
     CRLMGMT_DATA_set_note(cmdata, "tls or cmp connection or new certificate");
 
-    STACK_OF(X509) *untrusted_certs = NULL;
-
+    // Load credentials "for CMP level"
     if ((cmp_creds = CREDENTIALS_load(opt_cert, opt_key, opt_keypass, "credentials for CMP level")) == NULL) {
         LOG(FL_ERR, "Unable to set up credentials");
     }
 
     if (current_cmd == ir) {
+        // Secret is only used for IR
         char *secret = FILES_get_pass(opt_secret, "PBM-based message protection");
 
         (void)CREDENTIALS_set_pwd(cmp_creds, secret);
     }
     
+    // Set ref (in demo.cnf: "/CN=Sensproducts DevLab LRA" and add it to credentials)
     (void)CREDENTIALS_set_pwdref(cmp_creds, OPENSSL_strdup(opt_ref));
 
+    // Load trust store (in this example: creds/test/GasandPowerIoTRoot.crt) and apply settings
     own_truststore = STORE_load(opt_own_trusted, "trusted certs for validating own CMP signer cert", vpm);
-
     STORE_set_parameters(own_truststore, NULL /* vpm */, false, false, NULL, false, NULL, -1, false, NULL, -1);
 
+    // Load trust store (also creds/test/GasandPowerIoTRoot.crt) and apply settings
     cmp_truststore = STORE_load(opt_trusted, "trusted certs for CMP level", NULL /* no vpm: prevent strict checking */);
-
     STORE_set_parameters(cmp_truststore, vpm, opt_check_all, false /* stapling */, crls, opt_use_cdp, opt_cdps, (int)opt_crls_timeout, opt_use_aia, opt_ocsp, (int)opt_ocsp_timeout); //||
 
+    // Prepare common context for all CMP messages. opt_digest, opt_mac is in our case also NULL. opt_implicit_confirm is false for IR, true for KUR.
     err = CMPclient_prepare(&ctx, NULL /* libctx */, NULL /* propq */, LOG_console,
                             cmp_truststore, opt_recipient,
-                            untrusted_certs,
+                            NULL,
                             cmp_creds, own_truststore,
                             opt_digest, opt_mac,
                             NULL, 60 /*timeout*/,
@@ -796,7 +809,7 @@ int main(int argc, char *argv[])
 
     OSSL_CMP_CTX_set_log_verbosity(ctx, (int)opt_verbosity);
 
-    // Set option flags
+    // Set CMP option flags
     OSSL_CMP_CTX_set_option(ctx, OSSL_CMP_OPT_UNPROTECTED_ERRORS, 1);
     OSSL_CMP_CTX_set_option(ctx, OSSL_CMP_OPT_IGNORE_KEYUSAGE, 1);
     OSSL_CMP_CTX_set_option(ctx, OSSL_CMP_OPT_VALIDITY_DAYS, 0);
@@ -806,16 +819,16 @@ int main(int argc, char *argv[])
     // Setup new key
     new_pkey = KEY_new("rsa:4096");
 
-    // Setup TLS
+    // Setup TLS trust store
     tls_trust = STORE_load(opt_tls_trusted, "trusted certs for TLS level", NULL);
-
     STORE_set_parameters(tls_trust, vpm, opt_check_all, opt_stapling, crls, opt_use_cdp, opt_cdps, (int)opt_crls_timeout, opt_use_aia, opt_ocsp, (int)opt_ocsp_timeout);
     STORE_set_crl_callback(tls_trust, CRLMGMT_load_crl_cb, cmdata);
 
+    // Setup TLS context
     tls = TLS_new(tls_trust, OSSL_CMP_CTX_get0_untrusted(ctx), tls_creds, NULL, -1);
     STORE_set1_host_ip(tls_trust, opt_server, opt_server);
 
-    // Setup HTTP
+    // Setup HTTP connection
     err = CMPclient_setup_HTTP(ctx, "broker.sdo-qa.siemens.cloud:443", "/.well-known/cmp/p/PPKI%20QA", 1, 10, tls, NULL, 0);
     if (err != CMP_OK) {
         LOG(FL_ERR, "Cannot setup http");
@@ -828,6 +841,7 @@ int main(int argc, char *argv[])
       cmp_kur(ctx, new_creds, new_pkey);
     }
 
+    // Clean up
     CREDENTIALS_free(new_creds);
     CREDENTIALS_free(cmp_creds);
     STORE_free(cmp_truststore);
@@ -837,6 +851,5 @@ int main(int argc, char *argv[])
     CRLMGMT_DATA_free(cmdata);
     X509_VERIFY_PARAM_free(vpm);
     NCONF_free(config);
-    X509_free(oldcert);
     CMPclient_finish(ctx);
 }
