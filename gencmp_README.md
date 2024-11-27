@@ -1,83 +1,27 @@
-# simple CMP client
+# generic CMP client
 
-This is a simple CMP client based on gencmpclient. In the next steps it should be extracted from the fork,
-and libgencmp should be used (it already uses only the public API of the component), but for pace needed
-for PoC, I used the build infrastructure already provided by gencmpclient.
+This is a generic Certificate Management Protocol (CMP) client library
+with a high-level API
+and associated CLI-based demo client, tests, and documentation.
 
-original gencmpclient [README](gencmp_README.md)
+## Purpose
 
-## Build steps
+The purpose of this software is to provide a high-level API
+on top of the detailed CMP (and CRMF) API of
+[OpenSSL](https://www.openssl.org/) since version 3.0.
+It can be used with OpenSSL and optionally the intermediate CMP library
+[CMPforOpenSSL](https://github.com/mpeylo/cmpossl), called `libcmp` below,
+providing the CMPv3 features defined in
+[CMP Updates](https://www.rfc-editor.org/rfc/rfc9480).
 
-Don't forget to get submodules
-`git submodule update --init --recursive`
-
-Build
-`make -f Makefile_v1`
-
-Clean
-`make -f Makefile_v1 clean`
-
-## Running
-
-To access help `./cmpClient -h`
-
-It will show:
-```
-$ ./cmpClient -h
-Usage: ./cmpClient [-h] -c [ir|kur] [-m mac_string] [--sn serial_number_string]
-Options:
-  -h                          Print helpt              (Optional)
-  -c [ir|kur]                 Command IR or KUR        (Required)
-  -m mac_string               MAC address string       (Optional, default: 00:08:DC:74:43:DA)
-  -s serial_number_string     Serial number string     (Optional, default: IPS-601-25GW-07196)
-```
-
-Command IR and KUR are supported and they are required arguments.
-
-Examples:
-
-`./cmpClient -c ir`
-`./cmpClient -c kur`
-
-Timeout might happen, so just restart the request.
-
-## Configuration
-
-Configuration files used by `gencmpclient` and `libsecutils` are supported and required. Currently hardcoded is `config/demo.cnf` and besides the general settings, 
-`CloudCA`, `imprint` and `update` sections are in use.
-
-From the original, following fields are changed:
-
-`[CloudCA] recipient` is changed to `/CN=SE-CloudPKI-Integration-Test`.
-`[CloudCA] cacert` is changed to `creds/test/GasandPowerIoTRoot.crt`.
-`[CloudCA] out_trusted` is removed.
-`[CloudCA] ref` is changed to `"/CN=Sensproducts DevLab LRA"`
-`[CloudCA] secret` is changed to `pass:Random1234`
-`[CloudCA] subject` is changed to `"/unstructuredAddress=00:08:DC:74:43:DA/CN=Sensformer V1/serialNumber=IPS-601-25GW-07196/OU=Quality System - For Test purpose only/O=Siemens/C=DE"`,
-but it not used from the config. In fact if needed we could provide other values differently as well.
-
-`[imprint] newkeytype` is changed to `rsa:4096`, but the value is also not used.`
-`[update] cert` is changed to `$imprint::certout`.
-`[update] key` is changed to `$imprint::newkey`.
-`[update] keypass` is changed to `$imprint::newkeypass`.
-`[update] newkey` is changed to `$imprint::newkey`.
-`[update] newkeypass` is changed to `$imprint::newkeypass`.
-`[update] reqexts` is empty.
-`[update] policies` is empty.
-`[update] subject` is empty.
-`[update] oldcert` is changed to `$imprint::certout`.
-`[update] implicit_confirm` is changed to `1`.
-`[update] certout` is changed to `$imprint::certout`.
-
-## Saving CMP message to a DER file and sending a CMP from a DER file
-
-In the original client to be able to save a generated CMP message to file, you need to use `-reqout` flag. Example (for sending an IR message):
-`$ no_proxy=localhost,127.0.0.1 LD_LIBRARY_PATH="." ./cmpClient imprint -section CloudCA -path "/.well-known/cmp"/p/PPKI%20QA"" -reqexts empty -reqout ir_cmp.der`
-
-To be able to restore the `ir_cmp.der` and send it a `-reqin` flag is used:
-`$ no_proxy=localhost,127.0.0.1 LD_LIBRARY_PATH="." ./cmpClient imprint -section CloudCA -path "/.well-known/cmp"/p/PPKI%20QA"" -reqexts empty -reqin ir_cmp.der -newkeytype ""  -newkey creds/manufacturer.pem`
-
-It is worth noting that 
+The high-level API is on the one hand convenient to use for application
+programmers and on the other hand complete and flexible enough
+to cover the major certificate management use cases.
+The library supports developing CMP clients that adhere to
+the [Lightweight CMP Profile (LCMPP)](https://www.rfc-editor.org/rfc/rfc9483),
+which is geared towards simple and interoperable industrial use.
+The software also provides a command-line interface (CLI)
+that is handy for interactive exploration of using CMP in a PKI.
 
 
 ## Status and changelog

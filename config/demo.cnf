@@ -161,8 +161,6 @@ own_trusted = $cacert
 # User in tenant
 ref = "/CN=Sensproducts DevLab LRA"
 secret = pass:Random1234
-#subject = "/CN=CloudCA-Integration-Test-User,serialNumber=SENS-PORT,O=Siemens,C=DE"
-#subject = "/unstructuredAddress=000040000001000/CN=Sensformer/serialNumber=SENS-PROD-PASSWORD-RESET-TOKEN-SIGNING/OU=Quality System - For Test purpose only/O=Siemens/C=DE"
 subject = "/unstructuredAddress=00:08:DC:74:43:DA/CN=Sensformer V1/serialNumber=IPS-601-25GW-07196/OU=Quality System - For Test purpose only/O=Siemens/C=DE"
 
 # Local store for imprinting results
